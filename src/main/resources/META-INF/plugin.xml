@@ -3,37 +3,66 @@
     <!-- Unique identifier of the plugin. It should be FQN, cannot be changed between the plugin versions. -->
     <id>com.jellybebra.ContextCombiner</id>
 
-    <!-- Public plugin name should be written in Title Case.
-         Guidelines: https://plugins.jetbrains.com/docs/marketplace/best-practices-for-listing.html#plugin-name -->
-    <name>ContextCombiner</name>
+    <!-- Public plugin name should be written in Title Case. -->
+    <name>Context Combiner</name>
 
     <!-- A displayed Vendor name or Organization ID displayed on the Plugins Page. -->
-    <vendor url="https://www.yourcompany.com">YourCompany</vendor>
+    <vendor url="https://github.com/jellybebra">JellyBebra</vendor>
 
-    <!-- Description of the plugin displayed on the Plugin Page and IDE Plugin Manager.
-         Guidelines: https://plugins.jetbrains.com/docs/marketplace/best-practices-for-listing.html#plugin-description -->
+    <!-- Description of the plugin displayed on the Plugin Page and IDE Plugin Manager. -->
     <description><![CDATA[
-        Enter short description for your plugin here.<br>
-        <em>most HTML tags may be used</em>
+        <p><b>Boost your AI coding workflow with ContextCombiner!</b></p>
+        <p>
+            ContextCombiner is a productivity tool designed to help developers quickly gather code context for Large Language Models (LLMs) like ChatGPT, Claude, DeepSeek, or GitHub Copilot.
+        </p>
+        <p>Instead of manually copying and pasting multiple files, simply right-click a folder and export everything in a structured format.</p>
+
+        <p><b>Key Features:</b></p>
+        <ul>
+            <li>🚀 <b>Easy Context Gathering:</b> Right-click any file or folder in the Project View to start.</li>
+            <li>🌲 <b>Interactive Selection:</b> Select or deselect specific files using a convenient tree view with checkboxes.</li>
+            <li>📝 <b>LLM-Friendly Format:</b> content is automatically wrapped in Markdown code blocks (<code>```</code>) with clear file headers (<code>### path/to/file</code>), making it easy for AI to parse.</li>
+            <li>🛡️ <b>Smart Filtering:</b> Automatically ignores:
+                <ul>
+                    <li>Hidden files (starting with dot)</li>
+                    <li>Binary files (images, compiled archives)</li>
+                    <li>Files ignored by Git (respects <code>.gitignore</code> via IDE VCS integration)</li>
+                </ul>
+            </li>
+        </ul>
+
+        <p><b>How to use:</b></p>
+        <ol>
+            <li>Right-click a folder or file in the <b>Project View</b>.</li>
+            <li>Select <b>"Copy Context for LLM..."</b>.</li>
+            <li>Review the file list in the dialog and uncheck any unnecessary files.</li>
+            <li>Click <b>OK</b> — the formatted context is now in your clipboard, ready to paste!</li>
+        </ol>
     ]]></description>
 
     <depends>com.intellij.modules.platform</depends>
 
-    <!-- Product and plugin compatibility requirements.
-         Read more: https://plugins.jetbrains.com/docs/intellij/plugin-compatibility.html -->
+    <!-- Product and plugin compatibility requirements. -->
     <actions>
         <action id="com.jellybebra.contextcombiner.ContextCombinerAction"
                 class="com.jellybebra.contextcombiner.ContextCombinerAction"
                 text="Copy Context for LLM..."
-                description="Select files and copy their content to clipboard">
+                description="Select files and copy their content to clipboard"
+                icon="/icons/magicStack.svg">
+            >
 
             <!-- Добавляем в контекстное меню дерева проекта (Project View) -->
             <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
         </action>
     </actions>
 
-    <resource-bundle>messages.MyMessageBundle</resource-bundle>
-    <!-- Extensions defined by the plugin.
-         Read more: https://plugins.jetbrains.com/docs/intellij/plugin-extension-points.html -->
+    <change-notes><![CDATA[
+        <p><b>1.0.0 Initial Release</b></p>
+        <ul>
+            <li>Added ability to select files from Project View.</li>
+            <li>Implemented smart filtering (ignoring binary files and .gitignore).</li>
+            <li>Added Markdown formatting for output (### headers and ``` code blocks).</li>
+        </ul>
+    ]]></change-notes>
 
 </idea-plugin>

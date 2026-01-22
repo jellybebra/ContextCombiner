@@ -144,11 +144,13 @@ class ContextDialog(
                     // Используем contextFile как базу, чтобы пути были красивыми (относительными)
                     val relativePath = getRelativePath(contextFile, file)
 
-                    sb.append("\n========== FILE: $relativePath ==========\n")
+                    sb.append("\n### $relativePath\n")
+                    sb.append("```\n")
                     sb.append(content)
-                    sb.append("\n")
-                } catch (e: Exception) {
-                    sb.append("\n========== ERROR READING: ${file.path} ==========\n")
+                    if (!content.endsWith("\n")) sb.append("\n")
+                    sb.append("```\n")
+                } catch (_: Exception) {
+                    sb.append("\n### ERROR READING: ${file.path}\n")
                 }
             }
         } else {
