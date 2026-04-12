@@ -80,8 +80,8 @@ class ContextDialog(
     private fun createTreeNode(file: VirtualFile): CheckedTreeNode {
         val node = CheckedTreeNode(file)
 
-        // По умолчанию все выбрано, кроме игнорируемых (но игнорируемые мы фильтруем ниже)
-        node.isChecked = true
+        // Скрытые и gitignored-файлы показываем в дереве, но не выбираем по умолчанию.
+        node.isChecked = !isHiddenFile(file) && !isGitIgnored(file)
 
         if (file.isDirectory) {
             val children = file.children
@@ -96,22 +96,20 @@ class ContextDialog(
 
     /**
      * Логика фильтрации:
-     * 1. Игнорировать скрытые файлы (начинаются с точки)
-     * 2. Игнорировать файлы из .gitignore (используем ChangeListManager)
-     * 3. Игнорировать бинарные файлы (картинки и т.д.)
+     * 1. Игнорировать бинарные файлы (картинки и т.д.)
      */
     private fun shouldSkipFile(file: VirtualFile): Boolean {
-        // Пропускаем скрытые файлы (.git, .idea и т.д.)
-        if (file.name.startsWith(".")) return true
-
         // Пропускаем бинарные файлы (чтобы не копировать кракозябры)
-        if (!file.isDirectory && file.fileType.isBinary) return true
+        return !file.isDirectory && file.fileType.isBinary
+    }
 
-        // Проверка через ChangeListManager (учитывает .gitignore)
+    private fun isHiddenFile(file: VirtualFile): Boolean {
+        return file.name.startsWith(".")
+    }
+
+    private fun isGitIgnored(file: VirtualFile): Boolean {
         val changeListManager = ChangeListManager.getInstance(project)
-        if (changeListManager.isIgnoredFile(file)) return true
-
-        return false
+        return changeListManager.isIgnoredFile(file)
     }
 
     /**
