@@ -8,6 +8,7 @@ import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.openapi.vcs.changes.ChangeListManager
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.ui.CheckboxTree
+import com.intellij.ui.CheckboxTreeBase
 import com.intellij.ui.CheckedTreeNode
 import com.intellij.ui.SimpleTextAttributes
 import com.intellij.ui.components.JBLabel
@@ -41,6 +42,8 @@ class ContextDialog(
     private lateinit var selectionSummaryLabel: JBLabel
     private val fileMetricsCache = mutableMapOf<String, FileMetrics>()
     private val secondaryTextAttributes = SimpleTextAttributes(SimpleTextAttributes.STYLE_PLAIN, JBColor.GRAY)
+    // CheckedTreeNode is two-state, so parent and child nodes should stay synchronized.
+    private val treeCheckPolicy = CheckboxTreeBase.CheckPolicy(true, true, true, true)
 
     init {
         title = "Select Context for LLM"
@@ -81,7 +84,7 @@ class ContextDialog(
                     }
                 }
             }
-        }, rootNode)
+        }, rootNode, treeCheckPolicy)
         tree.isRootVisible = true
         tree.showsRootHandles = true
 
