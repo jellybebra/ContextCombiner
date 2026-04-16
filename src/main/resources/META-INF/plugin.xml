@@ -66,11 +66,15 @@
     </actions>
 
     <change-notes><![CDATA[
-        <p><b>1.0.0 Initial Release</b></p>
+        <p><b>1.0.2</b></p>
         <ul>
-            <li>Added ability to select files from Project View.</li>
-            <li>Implemented smart filtering (ignoring binary files and .gitignore).</li>
-            <li>Added Markdown formatting for output (### headers and ``` code blocks).</li>
+            <li>Added per-file size and estimated token count in the selection tree.</li>
+            <li>Added a live selection summary with selected file count, total size, and approximate token usage.</li>
+            <li>Added Expand all and Collapse all actions for faster navigation in large trees.</li>
+            <li>Made the root item visible in the popup to provide better folder context.</li>
+            <li>Changed hidden and Git-ignored file behavior: they are now shown in the tree but unchecked by default instead of being fully hidden.</li>
+            <li>Added a notification after copying context to the clipboard, including the number of exported files.</li>
+            <li>Registered a dedicated notification group and bumped the plugin version from 1.0.1 to 1.0.2.</li>
         </ul>
     ]]></change-notes>
 
