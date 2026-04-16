@@ -65,6 +65,8 @@ class ContextDialog(
                 }
             }
         }, rootNode)
+        tree.isRootVisible = true
+        tree.showsRootHandles = true
 
         // Разворачиваем корневой элемент
         (tree.model as DefaultTreeModel).nodeStructureChanged(rootNode)
