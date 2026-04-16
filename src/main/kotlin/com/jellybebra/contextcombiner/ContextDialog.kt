@@ -9,13 +9,24 @@ import com.intellij.openapi.vcs.changes.ChangeListManager
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.ui.CheckboxTree
 import com.intellij.ui.CheckedTreeNode
+import com.intellij.ui.SimpleTextAttributes
+import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBScrollPane
+import com.intellij.ui.JBColor
 import com.intellij.util.ui.JBUI
 import java.awt.BorderLayout
 import java.awt.datatransfer.StringSelection
+import java.awt.event.KeyAdapter
+import java.awt.event.KeyEvent
+import java.awt.event.MouseAdapter
+import java.awt.event.MouseEvent
+import java.util.Locale
 import javax.swing.JComponent
 import javax.swing.JPanel
+import javax.swing.SwingUtilities
 import javax.swing.JTree
+import javax.swing.event.TreeModelEvent
+import javax.swing.event.TreeModelListener
 import javax.swing.tree.DefaultTreeModel
 
 class ContextDialog(
@@ -25,6 +36,9 @@ class ContextDialog(
 
     private lateinit var rootNode: CheckedTreeNode
     private lateinit var tree: CheckboxTree
+    private lateinit var selectionSummaryLabel: JBLabel
+    private val fileMetricsCache = mutableMapOf<String, FileMetrics>()
+    private val secondaryTextAttributes = SimpleTextAttributes(SimpleTextAttributes.STYLE_PLAIN, JBColor.GRAY)
 
     init {
         title = "Select Context for LLM"
@@ -35,6 +49,9 @@ class ContextDialog(
         val dialogPanel = JPanel(BorderLayout())
         dialogPanel.border = JBUI.Borders.empty(10)
         dialogPanel.preferredSize = JBUI.size(500, 400) // Размер окна по умолчанию
+
+        selectionSummaryLabel = JBLabel()
+        selectionSummaryLabel.border = JBUI.Borders.emptyBottom(8)
 
         // 1. Создаем корневой узел и строим дерево
         rootNode = createTreeNode(contextFile)
@@ -60,6 +77,7 @@ class ContextDialog(
                             textRenderer.icon = AllIcons.Nodes.Folder
                         } else {
                             textRenderer.icon = file.fileType.icon ?: AllIcons.FileTypes.Text
+                            textRenderer.append(" (${formatMetrics(getFileMetrics(file))})", secondaryTextAttributes)
                         }
                     }
                 }
@@ -72,7 +90,11 @@ class ContextDialog(
         (tree.model as DefaultTreeModel).nodeStructureChanged(rootNode)
         tree.expandRow(0)
 
+        installSummaryUpdates()
+        updateSelectionSummary()
+
         // Добавляем дерево в панель с прокруткой
+        dialogPanel.add(selectionSummaryLabel, BorderLayout.NORTH)
         dialogPanel.add(JBScrollPane(tree), BorderLayout.CENTER)
 
         return dialogPanel
@@ -115,6 +137,101 @@ class ContextDialog(
         val changeListManager = ChangeListManager.getInstance(project)
         return changeListManager.isIgnoredFile(file)
     }
+
+    private fun installSummaryUpdates() {
+        val updateLater = {
+            SwingUtilities.invokeLater {
+                updateSelectionSummary()
+            }
+        }
+
+        (tree.model as? DefaultTreeModel)?.addTreeModelListener(object : TreeModelListener {
+            override fun treeNodesChanged(e: TreeModelEvent?) = updateLater()
+            override fun treeNodesInserted(e: TreeModelEvent?) = updateLater()
+            override fun treeNodesRemoved(e: TreeModelEvent?) = updateLater()
+            override fun treeStructureChanged(e: TreeModelEvent?) = updateLater()
+        })
+
+        tree.addMouseListener(object : MouseAdapter() {
+            override fun mouseReleased(e: MouseEvent?) = updateLater()
+        })
+
+        tree.addKeyListener(object : KeyAdapter() {
+            override fun keyReleased(e: KeyEvent?) = updateLater()
+        })
+    }
+
+    private fun updateSelectionSummary() {
+        val metrics = collectSelectionMetrics(rootNode)
+        val fileLabel = if (metrics.fileCount == 1) "file" else "files"
+        selectionSummaryLabel.text =
+            "Selected: ${metrics.fileCount} $fileLabel (${formatBytes(metrics.totalSizeBytes)} / ~${formatNumber(metrics.estimatedTokens)} tokens)"
+    }
+
+    private fun collectSelectionMetrics(node: CheckedTreeNode): SelectionMetrics {
+        val file = node.userObject as? VirtualFile ?: return SelectionMetrics()
+        if (!file.isDirectory) {
+            if (!node.isChecked) return SelectionMetrics()
+            val metrics = getFileMetrics(file)
+            return SelectionMetrics(
+                fileCount = 1,
+                totalSizeBytes = metrics.sizeBytes,
+                estimatedTokens = metrics.estimatedTokens
+            )
+        }
+
+        var fileCount = 0
+        var totalSizeBytes = 0L
+        var estimatedTokens = 0L
+        for (i in 0 until node.childCount) {
+            val child = node.getChildAt(i) as? CheckedTreeNode ?: continue
+            val childMetrics = collectSelectionMetrics(child)
+            fileCount += childMetrics.fileCount
+            totalSizeBytes += childMetrics.totalSizeBytes
+            estimatedTokens += childMetrics.estimatedTokens
+        }
+        return SelectionMetrics(fileCount, totalSizeBytes, estimatedTokens)
+    }
+
+    private fun getFileMetrics(file: VirtualFile): FileMetrics {
+        return fileMetricsCache.getOrPut(file.path) {
+            val sizeBytes = file.length.coerceAtLeast(0L)
+            FileMetrics(
+                sizeBytes = sizeBytes,
+                estimatedTokens = estimateTokens(sizeBytes)
+            )
+        }
+    }
+
+    private fun estimateTokens(sizeBytes: Long): Long {
+        if (sizeBytes <= 0L) return 0L
+        return ((sizeBytes + 3) / 4).coerceAtLeast(1L)
+    }
+
+    private fun formatMetrics(metrics: FileMetrics): String {
+        return "${formatBytes(metrics.sizeBytes)} / ~${formatNumber(metrics.estimatedTokens)} tokens"
+    }
+
+    private fun formatBytes(bytes: Long): String {
+        if (bytes < 1024) return "$bytes B"
+
+        val units = arrayOf("KB", "MB", "GB", "TB")
+        var value = bytes.toDouble()
+        var unitIndex = -1
+        while (value >= 1024 && unitIndex < units.lastIndex) {
+            value /= 1024
+            unitIndex++
+        }
+
+        val formattedValue = if (value >= 10) {
+            value.toLong().toString()
+        } else {
+            String.format(Locale.US, "%.1f", value).trimEnd('0').trimEnd('.')
+        }
+        return "$formattedValue ${units[unitIndex]}"
+    }
+
+    private fun formatNumber(value: Long): String = String.format(Locale.US, "%,d", value)
 
     /**
      * Действие при нажатии кнопки OK
@@ -189,4 +306,15 @@ class ContextDialog(
         }
         return target.path
     }
+
+    private data class FileMetrics(
+        val sizeBytes: Long,
+        val estimatedTokens: Long
+    )
+
+    private data class SelectionMetrics(
+        val fileCount: Int = 0,
+        val totalSizeBytes: Long = 0L,
+        val estimatedTokens: Long = 0L
+    )
 }
