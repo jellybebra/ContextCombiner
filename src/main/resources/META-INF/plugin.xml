@@ -6,6 +6,8 @@
     <!-- Public plugin name should be written in Title Case. -->
     <name>Context Combiner</name>
 
+    <resource-bundle>messages.MyMessageBundle</resource-bundle>
+
     <!-- A displayed Vendor name or Organization ID displayed on the Plugins Page. -->
     <vendor url="https://github.com/jellybebra">JellyBebra</vendor>
 
@@ -41,6 +43,13 @@
     ]]></description>
 
     <depends>com.intellij.modules.platform</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <notificationGroup
+                id="ContextCombiner.Notifications"
+                displayType="BALLOON"
+                key="notification.group.context.combiner"/>
+    </extensions>
 
     <!-- Product and plugin compatibility requirements. -->
     <actions>

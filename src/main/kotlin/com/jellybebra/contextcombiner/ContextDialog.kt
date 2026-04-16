@@ -1,6 +1,8 @@
 package com.jellybebra.contextcombiner
 
 import com.intellij.icons.AllIcons
+import com.intellij.notification.NotificationGroupManager
+import com.intellij.notification.NotificationType
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.openapi.vcs.changes.ChangeListManager
@@ -117,21 +119,31 @@ class ContextDialog(
      */
     override fun doOKAction() {
         val sb = StringBuilder()
+        var copiedFilesCount = 0
 
         // Собираем выбранные файлы
-        collectCheckedFiles(rootNode, sb)
+        copiedFilesCount = collectCheckedFiles(rootNode, sb)
 
         if (sb.isNotEmpty()) {
             // Это работает надежнее для вставки в браузер/блокнот
             val selection = StringSelection(sb.toString())
             java.awt.Toolkit.getDefaultToolkit().systemClipboard.setContents(selection, selection)
+
+            NotificationGroupManager.getInstance()
+                .getNotificationGroup("ContextCombiner.Notifications")
+                .createNotification(
+                    "Copied $copiedFilesCount file${if (copiedFilesCount == 1) "" else "s"} to clipboard",
+                    NotificationType.INFORMATION
+                )
+                .notify(project)
         }
 
         super.doOKAction()
     }
 
-    private fun collectCheckedFiles(node: CheckedTreeNode, sb: StringBuilder) {
+    private fun collectCheckedFiles(node: CheckedTreeNode, sb: StringBuilder): Int {
         val file = node.userObject as? VirtualFile
+        var copiedFilesCount = 0
 
         // ИСПРАВЛЕНИЕ 2: Логика обхода
         if (file != null && !file.isDirectory) {
@@ -147,6 +159,7 @@ class ContextDialog(
                     sb.append(content)
                     if (!content.endsWith("\n")) sb.append("\n")
                     sb.append("```\n")
+                    copiedFilesCount++
                 } catch (_: Exception) {
                     sb.append("\n### ERROR READING: ${file.path}\n")
                 }
@@ -155,10 +168,12 @@ class ContextDialog(
             for (i in 0 until node.childCount) {
                 val child = node.getChildAt(i) as? CheckedTreeNode
                 if (child != null) {
-                    collectCheckedFiles(child, sb)
+                    copiedFilesCount += collectCheckedFiles(child, sb)
                 }
             }
         }
+
+        return copiedFilesCount
     }
 
     // Простой хелпер для получения пути относительно папки
