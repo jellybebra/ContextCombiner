@@ -15,6 +15,7 @@ import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.JBColor
 import com.intellij.util.ui.JBUI
 import java.awt.BorderLayout
+import java.awt.FlowLayout
 import java.awt.datatransfer.StringSelection
 import java.awt.event.KeyAdapter
 import java.awt.event.KeyEvent
@@ -22,6 +23,7 @@ import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
 import java.util.Locale
 import javax.swing.JComponent
+import javax.swing.JButton
 import javax.swing.JPanel
 import javax.swing.SwingUtilities
 import javax.swing.JTree
@@ -49,9 +51,6 @@ class ContextDialog(
         val dialogPanel = JPanel(BorderLayout())
         dialogPanel.border = JBUI.Borders.empty(10)
         dialogPanel.preferredSize = JBUI.size(500, 400) // Размер окна по умолчанию
-
-        selectionSummaryLabel = JBLabel()
-        selectionSummaryLabel.border = JBUI.Borders.emptyBottom(8)
 
         // 1. Создаем корневой узел и строим дерево
         rootNode = createTreeNode(contextFile)
@@ -90,14 +89,40 @@ class ContextDialog(
         (tree.model as DefaultTreeModel).nodeStructureChanged(rootNode)
         tree.expandRow(0)
 
+        val headerPanel = createHeaderPanel()
+
         installSummaryUpdates()
         updateSelectionSummary()
 
         // Добавляем дерево в панель с прокруткой
-        dialogPanel.add(selectionSummaryLabel, BorderLayout.NORTH)
+        dialogPanel.add(headerPanel, BorderLayout.NORTH)
         dialogPanel.add(JBScrollPane(tree), BorderLayout.CENTER)
 
         return dialogPanel
+    }
+
+    private fun createHeaderPanel(): JComponent {
+        selectionSummaryLabel = JBLabel()
+
+        val headerPanel = JPanel(BorderLayout(JBUI.scale(8), 0))
+        headerPanel.isOpaque = false
+        headerPanel.border = JBUI.Borders.emptyBottom(8)
+
+        val actionsPanel = JPanel(FlowLayout(FlowLayout.RIGHT, JBUI.scale(8), 0))
+        actionsPanel.isOpaque = false
+
+        val collapseAllButton = JButton("Collapse all")
+        collapseAllButton.addActionListener { collapseAllTreeRows() }
+
+        val expandAllButton = JButton("Expand all")
+        expandAllButton.addActionListener { expandAllTreeRows() }
+
+        actionsPanel.add(collapseAllButton)
+        actionsPanel.add(expandAllButton)
+
+        headerPanel.add(selectionSummaryLabel, BorderLayout.CENTER)
+        headerPanel.add(actionsPanel, BorderLayout.EAST)
+        return headerPanel
     }
 
     /**
@@ -166,6 +191,20 @@ class ContextDialog(
         val fileLabel = if (metrics.fileCount == 1) "file" else "files"
         selectionSummaryLabel.text =
             "Selected: ${metrics.fileCount} $fileLabel (${formatBytes(metrics.totalSizeBytes)} / ~${formatNumber(metrics.estimatedTokens)} tokens)"
+    }
+
+    private fun expandAllTreeRows() {
+        var row = 0
+        while (row < tree.rowCount) {
+            tree.expandRow(row)
+            row++
+        }
+    }
+
+    private fun collapseAllTreeRows() {
+        for (row in tree.rowCount - 1 downTo 0) {
+            tree.collapseRow(row)
+        }
     }
 
     private fun collectSelectionMetrics(node: CheckedTreeNode): SelectionMetrics {
