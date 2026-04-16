@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "com.jellybebra"
-version = "1.0.2"
+version = "1.0.3"
 
 repositories {
     mavenCentral()
@@ -33,7 +33,7 @@ intellijPlatform {
         }
 
         changeNotes = """
-            Initial version
+            Better UI
         """.trimIndent()
     }
 }

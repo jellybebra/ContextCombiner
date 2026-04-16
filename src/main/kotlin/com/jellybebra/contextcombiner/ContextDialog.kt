@@ -131,17 +131,19 @@ class ContextDialog(
     /**
      * Рекурсивная функция для создания структуры дерева
      */
-    private fun createTreeNode(file: VirtualFile): CheckedTreeNode {
+    private fun createTreeNode(file: VirtualFile, parentCheckedByDefault: Boolean = true): CheckedTreeNode {
         val node = CheckedTreeNode(file)
+        val isCheckedByDefault = parentCheckedByDefault && !isHiddenFile(file) && !isGitIgnored(file)
 
-        // Скрытые и gitignored-файлы показываем в дереве, но не выбираем по умолчанию.
-        node.isChecked = !isHiddenFile(file) && !isGitIgnored(file)
+        // Скрытые и gitignored-элементы показываем в дереве, но не выбираем по умолчанию.
+        // Если папка снята по умолчанию, всё её поддерево тоже стартует снятым.
+        node.isChecked = isCheckedByDefault
 
         if (file.isDirectory) {
             val children = file.children
             for (child in children) {
                 if (!shouldSkipFile(child)) {
-                    node.add(createTreeNode(child))
+                    node.add(createTreeNode(child, isCheckedByDefault))
                 }
             }
         }
@@ -212,8 +214,9 @@ class ContextDialog(
 
     private fun collectSelectionMetrics(node: CheckedTreeNode): SelectionMetrics {
         val file = node.userObject as? VirtualFile ?: return SelectionMetrics()
+        if (!node.isChecked) return SelectionMetrics()
+
         if (!file.isDirectory) {
-            if (!node.isChecked) return SelectionMetrics()
             val metrics = getFileMetrics(file)
             return SelectionMetrics(
                 fileCount = 1,
@@ -305,25 +308,24 @@ class ContextDialog(
     private fun collectCheckedFiles(node: CheckedTreeNode, sb: StringBuilder): Int {
         val file = node.userObject as? VirtualFile
         var copiedFilesCount = 0
+        if (file == null || !node.isChecked) return 0
 
         // ИСПРАВЛЕНИЕ 2: Логика обхода
-        if (file != null && !file.isDirectory) {
+        if (!file.isDirectory) {
             // Если это файл — проверяем галочку ТОЛЬКО здесь
-            if (node.isChecked) {
-                try {
-                    val content = String(file.contentsToByteArray(), file.charset)
-                    // Используем contextFile как базу, чтобы пути были красивыми (относительными)
-                    val relativePath = getRelativePath(contextFile, file)
+            try {
+                val content = String(file.contentsToByteArray(), file.charset)
+                // Используем contextFile как базу, чтобы пути были красивыми (относительными)
+                val relativePath = getRelativePath(contextFile, file)
 
-                    sb.append("\n### $relativePath\n")
-                    sb.append("```\n")
-                    sb.append(content)
-                    if (!content.endsWith("\n")) sb.append("\n")
-                    sb.append("```\n")
-                    copiedFilesCount++
-                } catch (_: Exception) {
-                    sb.append("\n### ERROR READING: ${file.path}\n")
-                }
+                sb.append("\n### $relativePath\n")
+                sb.append("```\n")
+                sb.append(content)
+                if (!content.endsWith("\n")) sb.append("\n")
+                sb.append("```\n")
+                copiedFilesCount++
+            } catch (_: Exception) {
+                sb.append("\n### ERROR READING: ${file.path}\n")
             }
         } else {
             for (i in 0 until node.childCount) {
