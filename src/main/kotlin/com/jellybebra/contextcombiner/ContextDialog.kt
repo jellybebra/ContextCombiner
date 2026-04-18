@@ -214,9 +214,8 @@ class ContextDialog(
 
     private fun collectSelectionMetrics(node: CheckedTreeNode): SelectionMetrics {
         val file = node.userObject as? VirtualFile ?: return SelectionMetrics()
-        if (!node.isChecked) return SelectionMetrics()
-
         if (!file.isDirectory) {
+            if (!node.isChecked) return SelectionMetrics()
             val metrics = getFileMetrics(file)
             return SelectionMetrics(
                 fileCount = 1,
@@ -308,10 +307,11 @@ class ContextDialog(
     private fun collectCheckedFiles(node: CheckedTreeNode, sb: StringBuilder): Int {
         val file = node.userObject as? VirtualFile
         var copiedFilesCount = 0
-        if (file == null || !node.isChecked) return 0
+        if (file == null) return 0
 
         // ИСПРАВЛЕНИЕ 2: Логика обхода
         if (!file.isDirectory) {
+            if (!node.isChecked) return 0
             // Если это файл — проверяем галочку ТОЛЬКО здесь
             try {
                 val content = String(file.contentsToByteArray(), file.charset)
