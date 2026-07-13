@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "com.jellybebra"
-version = "1.0.4"
+version = "1.0.5"
 
 repositories {
     mavenCentral()
@@ -16,6 +16,8 @@ repositories {
 
 // Read more: https://plugins.jetbrains.com/docs/intellij/tools-intellij-platform-gradle-plugin.html
 dependencies {
+    testImplementation("junit:junit:4.13.2")
+
     intellijPlatform {
         intellijIdea("2025.2.4")
         testFramework(org.jetbrains.intellij.platform.gradle.TestFrameworkType.Platform)

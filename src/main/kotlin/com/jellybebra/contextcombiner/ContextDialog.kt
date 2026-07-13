@@ -6,6 +6,7 @@ import com.intellij.notification.NotificationType
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.openapi.vcs.changes.ChangeListManager
+import com.intellij.openapi.vfs.VfsUtilCore
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.ui.CheckboxTree
 import com.intellij.ui.CheckboxTreeBase
@@ -41,6 +42,7 @@ class ContextDialog(
     private lateinit var tree: CheckboxTree
     private lateinit var selectionSummaryLabel: JBLabel
     private val fileMetricsCache = mutableMapOf<String, FileMetrics>()
+    private val selectionStore = ContextSelectionStore(project, contextFile)
     private val secondaryTextAttributes = SimpleTextAttributes(SimpleTextAttributes.STYLE_PLAIN, JBColor.GRAY)
     // CheckedTreeNode is two-state, so parent and child nodes should stay synchronized.
     private val treeCheckPolicy = CheckboxTreeBase.CheckPolicy(true, true, true, true)
@@ -56,7 +58,7 @@ class ContextDialog(
         dialogPanel.preferredSize = JBUI.size(500, 400) // Размер окна по умолчанию
 
         // 1. Создаем корневой узел и строим дерево
-        rootNode = createTreeNode(contextFile)
+        rootNode = createTreeNode(contextFile, savedSelection = selectionStore.load())
 
         // 2. Создаем компонент CheckboxTree
         // Renderer отвечает за то, как выглядят элементы (иконка + имя)
@@ -120,6 +122,10 @@ class ContextDialog(
         val expandAllButton = JButton("Expand all")
         expandAllButton.addActionListener { expandAllTreeRows() }
 
+        val selectDefaultsButton = JButton("Select defaults")
+        selectDefaultsButton.addActionListener { selectDefaults() }
+
+        actionsPanel.add(selectDefaultsButton)
         actionsPanel.add(collapseAllButton)
         actionsPanel.add(expandAllButton)
 
@@ -131,21 +137,33 @@ class ContextDialog(
     /**
      * Рекурсивная функция для создания структуры дерева
      */
-    private fun createTreeNode(file: VirtualFile, parentCheckedByDefault: Boolean = true): CheckedTreeNode {
+    private fun createTreeNode(
+        file: VirtualFile,
+        parentCheckedByDefault: Boolean = true,
+        savedSelection: SavedSelection? = null
+    ): CheckedTreeNode {
         val node = CheckedTreeNode(file)
-        val isCheckedByDefault = parentCheckedByDefault && !isHiddenFile(file) && !isGitIgnored(file)
-
-        // Скрытые и gitignored-элементы показываем в дереве, но не выбираем по умолчанию.
-        // Если папка снята по умолчанию, всё её поддерево тоже стартует снятым.
-        node.isChecked = isCheckedByDefault
+        val isCheckedByDefault = parentCheckedByDefault && isSelectedByDefault(file)
+        val relativePath = getSelectionPath(file)
 
         if (file.isDirectory) {
             val children = file.children
             for (child in children) {
                 if (!shouldSkipFile(child)) {
-                    node.add(createTreeNode(child, isCheckedByDefault))
+                    node.add(createTreeNode(child, isCheckedByDefault, savedSelection))
                 }
             }
+            node.isChecked = if (savedSelection == null) {
+                isCheckedByDefault
+            } else if (node.childCount == 0) {
+                savedSelection.isDirectoryFullySelected(relativePath)
+            } else {
+                (0 until node.childCount).all { index ->
+                    (node.getChildAt(index) as CheckedTreeNode).isChecked
+                }
+            }
+        } else {
+            node.isChecked = savedSelection?.isFileSelected(relativePath) ?: isCheckedByDefault
         }
         return node
     }
@@ -160,7 +178,13 @@ class ContextDialog(
     }
 
     private fun isHiddenFile(file: VirtualFile): Boolean {
-        return file.name.startsWith(".")
+        return file.name.startsWith(".") && !(file.isDirectory && file.name == ".github")
+    }
+
+    private fun isSelectedByDefault(file: VirtualFile): Boolean {
+        return !isHiddenFile(file) &&
+            !isGitIgnored(file) &&
+            (file.isDirectory || !file.name.endsWith(".sum", ignoreCase = true))
     }
 
     private fun isGitIgnored(file: VirtualFile): Boolean {
@@ -209,6 +233,24 @@ class ContextDialog(
     private fun collapseAllTreeRows() {
         for (row in tree.rowCount - 1 downTo 0) {
             tree.collapseRow(row)
+        }
+    }
+
+    private fun selectDefaults() {
+        applyDefaultSelection(rootNode)
+        (tree.model as? DefaultTreeModel)?.nodeStructureChanged(rootNode)
+        tree.expandRow(0)
+        updateSelectionSummary()
+    }
+
+    private fun applyDefaultSelection(node: CheckedTreeNode, parentCheckedByDefault: Boolean = true) {
+        val file = node.userObject as? VirtualFile ?: return
+        val isCheckedByDefault = parentCheckedByDefault && isSelectedByDefault(file)
+        node.isChecked = isCheckedByDefault
+
+        for (index in 0 until node.childCount) {
+            val child = node.getChildAt(index) as? CheckedTreeNode ?: continue
+            applyDefaultSelection(child, isCheckedByDefault)
         }
     }
 
@@ -282,10 +324,10 @@ class ContextDialog(
      */
     override fun doOKAction() {
         val sb = StringBuilder()
-        var copiedFilesCount = 0
+        selectionStore.save(captureSelection(rootNode))
 
         // Собираем выбранные файлы
-        copiedFilesCount = collectCheckedFiles(rootNode, sb)
+        val copiedFilesCount = collectCheckedFiles(rootNode, sb)
 
         if (sb.isNotEmpty()) {
             // Это работает надежнее для вставки в браузер/блокнот
@@ -302,6 +344,38 @@ class ContextDialog(
         }
 
         super.doOKAction()
+    }
+
+    private fun captureSelection(root: CheckedTreeNode): SavedSelection {
+        val selectedFiles = mutableSetOf<String>()
+        val fullySelectedDirectories = mutableSetOf<String>()
+
+        fun visit(node: CheckedTreeNode) {
+            val file = node.userObject as? VirtualFile ?: return
+            if (file.isDirectory) {
+                if (isSubtreeFullySelected(node)) {
+                    fullySelectedDirectories.add(getSelectionPath(file))
+                }
+                for (index in 0 until node.childCount) {
+                    val child = node.getChildAt(index) as? CheckedTreeNode ?: continue
+                    visit(child)
+                }
+            } else if (node.isChecked) {
+                selectedFiles.add(getSelectionPath(file))
+            }
+        }
+
+        visit(root)
+        return SavedSelection(selectedFiles, fullySelectedDirectories)
+    }
+
+    private fun isSubtreeFullySelected(node: CheckedTreeNode): Boolean {
+        if (!node.isChecked) return false
+        for (index in 0 until node.childCount) {
+            val child = node.getChildAt(index) as? CheckedTreeNode ?: return false
+            if (!isSubtreeFullySelected(child)) return false
+        }
+        return true
     }
 
     private fun collectCheckedFiles(node: CheckedTreeNode, sb: StringBuilder): Int {
@@ -349,6 +423,11 @@ class ContextDialog(
             return targetPath.substring(basePath.length + 1)
         }
         return target.path
+    }
+
+    private fun getSelectionPath(file: VirtualFile): String {
+        if (file == contextFile) return ""
+        return VfsUtilCore.getRelativePath(file, contextFile, '/') ?: file.path
     }
 
     private data class FileMetrics(
