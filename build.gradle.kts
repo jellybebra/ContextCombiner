@@ -45,6 +45,8 @@ intellijPlatform {
                 .orElse(providers.gradleProperty("intellijPublishToken"))
         )
     }
+
+    buildSearchableOptions = false
 }
 
 tasks {
