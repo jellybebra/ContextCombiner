@@ -55,10 +55,7 @@
     <actions>
         <action id="com.jellybebra.contextcombiner.ContextCombinerAction"
                 class="com.jellybebra.contextcombiner.ContextCombinerAction"
-                text="Copy Context for LLM..."
-                description="Select files and copy their content to clipboard"
                 icon="/icons/magicStack.svg">
-            >
 
             <!-- Добавляем в контекстное меню дерева проекта (Project View) -->
             <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
