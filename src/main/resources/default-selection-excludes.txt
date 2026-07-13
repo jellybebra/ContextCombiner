@@ -1,0 +1,24 @@
+# Generated dependency resolution and checksum files.
+*.sum
+package-lock.json
+npm-shrinkwrap.json
+yarn.lock
+pnpm-lock.yaml
+pnpm-lock.yml
+bun.lock
+bun.lockb
+Cargo.lock
+composer.lock
+poetry.lock
+uv.lock
+Pipfile.lock
+Gemfile.lock
+packages.lock.json
+gradle.lockfile
+Podfile.lock
+Cartfile.resolved
+Package.resolved
+mix.lock
+pubspec.lock
+flake.lock
+deno.lock

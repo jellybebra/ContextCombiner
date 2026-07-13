@@ -182,9 +182,10 @@ class ContextDialog(
     }
 
     private fun isSelectedByDefault(file: VirtualFile): Boolean {
-        return !isHiddenFile(file) &&
-            !isGitIgnored(file) &&
-            (file.isDirectory || !file.name.endsWith(".sum", ignoreCase = true))
+        if (isHiddenFile(file) || isGitIgnored(file)) return false
+        if (file.isDirectory) return true
+
+        return !DefaultSelectionExclusions.matches(file.name)
     }
 
     private fun isGitIgnored(file: VirtualFile): Boolean {
