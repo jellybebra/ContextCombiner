@@ -9,16 +9,26 @@ A plugin for JetBrains IDEs to merge together selected files and copy the result
   You can read more about this file in the [Plugin Configuration File][docs:plugin.xml] section of our documentation.
   If you're still not quite sure what this is all about, read our introduction: [What is the IntelliJ Platform?][docs:intro]
 
-- publish the plugin
+## Publishing
 
-  Make sure to follow all guidelines listed in [Publishing a Plugin][docs:publishing] to follow all recommended and required steps.
-  
-  Releasing a plugin to [JetBrains Marketplace](https://plugins.jetbrains.com) is a straightforward operation that uses
-  the `publishPlugin` Gradle task provided by
-  the [intellij-platform-gradle-plugin][gh:intellij-platform-gradle-plugin-docs].
-  
-  You can also upload the plugin to the [JetBrains Plugin Repository](https://plugins.jetbrains.com/plugin/upload)
-  manually via UI.
+Releasing the plugin to [JetBrains Marketplace](https://plugins.jetbrains.com) can be done directly from the command line using the `publishPlugin` Gradle task.
+
+### 1. Setup JetBrains Marketplace Token
+1. Go to your profile settings on the JetBrains Marketplace under **My Tokens** (or visit [plugins.jetbrains.com/author/me/tokens](https://plugins.jetbrains.com/author/me/tokens)).
+2. Generate a new **Personal Access Token**.
+3. Create (or open) a global `gradle.properties` file in your home directory:
+   - **Windows**: `C:\Users\<Username>\.gradle\gradle.properties`
+   - **macOS / Linux**: `~/.gradle/gradle.properties`
+4. Add the following line to the file:
+   ```properties
+   intellijPublishToken=perm:your_token_here
+   ```
+
+### 2. Publish the Plugin
+Run the following command in the project root:
+- **Windows (PowerShell)**: `.\gradlew.bat publishPlugin`
+- **Windows (cmd)**: `gradlew.bat publishPlugin`
+- **macOS / Linux**: `./gradlew publishPlugin`
 
 [docs]: https://plugins.jetbrains.com/docs/intellij
 

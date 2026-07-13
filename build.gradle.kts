@@ -38,6 +38,13 @@ intellijPlatform {
             Better UI
         """.trimIndent()
     }
+
+    publishing {
+        token.set(
+            providers.environmentVariable("JETBRAINS_MARKETPLACE_TOKEN")
+                .orElse(providers.gradleProperty("intellijPublishToken"))
+        )
+    }
 }
 
 tasks {
