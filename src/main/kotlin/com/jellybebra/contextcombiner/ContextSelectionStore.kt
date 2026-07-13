@@ -29,7 +29,7 @@ internal class ContextSelectionStore(
     private val propertyKey = "contextCombiner.selection.v1.${hash(contextFile.url)}"
 
     fun load(): SavedSelection? {
-        val values = properties.getValues(propertyKey) ?: return null
+        val values = properties.getList(propertyKey) ?: return null
         if (FORMAT_MARKER !in values) return null
 
         return SavedSelection(
@@ -50,7 +50,7 @@ internal class ContextSelectionStore(
             selection.selectedFiles.sorted().forEach { add("$FILE_PREFIX$it") }
             selection.fullySelectedDirectories.sorted().forEach { add("$DIRECTORY_PREFIX$it") }
         }
-        properties.setValues(propertyKey, values.toTypedArray())
+        properties.setList(propertyKey, values)
     }
 
     private fun hash(value: String): String {
